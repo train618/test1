@@ -32,7 +32,7 @@ def report(ticker):
     dbgout('현재 가격: ' + str(round(btc_current_price)))
     dbgout('당일 저가: ' + str(round(df.iloc[0]['low'])))
     dbgout('매수 목표 가격: ' + str(round(target_price)))
-    dbgout('매도 목표 시간: ' + '오전' + str(pricemax) + '시')
+    dbgout('매도 목표 시간: ' + '오전' + str(pricemax+clock) + '시')
     dbgout('매도 예측 가격: ' + str(predicted_close_price))
 
 def get_target_price(ticker, k):
@@ -70,26 +70,10 @@ def predict_price(ticker):
     global predicted_close_price
     global pricemax
     global pricemin
-    three_days = []
     week = []
     month = []
     one_hundred_days = []
-
-    df = pyupbit.get_ohlcv(ticker, count=72, interval="minute60")
-    df = df.reset_index()
-    df['ds'] = df['index']
-    df['y'] = df['close']
-    data = df[['ds','y']]
-    model = Prophet()
-    model.fit(data)
-    future = model.make_future_dataframe(periods=24, freq='H')
-    forecast = model.predict(future)
-    for i in range(clock,10):
-        closeDf = forecast[forecast['ds'] == forecast.iloc[-1]['ds'].replace(hour=i)]
-        if len(closeDf) == 0:
-            closeDf = forecast[forecast['ds'] == data.iloc[-1]['ds'].replace(hour=i)]
-        closeValue = closeDf['yhat'].values[0]
-        three_days.append(closeValue)
+    time_cnt_a()
 
     df = pyupbit.get_ohlcv(ticker, count=168, interval="minute60")
     df = df.reset_index()
@@ -139,7 +123,7 @@ def predict_price(ticker):
         closeValue = closeDf['yhat'].values[0]
         one_hundred_days.append(closeValue)
     
-    c = [(three_days[i]+week[i]+month[i]+one_hundred_days[i])/4 for i in range(len(week))]
+    c = [(week[i]+month[i]+one_hundred_days[i])/3 for i in range(len(week))]
     pricemax = c.index(max(c))
     pricemin = c.index(min(c))
     
@@ -174,8 +158,8 @@ def time_cnt_a():
 time_cnt_a()
 predict_price("KRW-BTC")
 report("KRW-BTC")
-schedule.every().hour.do(lambda: predict_price("KRW-BTC"))
-schedule.every().hour.do(lambda: report("KRW-BTC"))
+schedule.every().hour.at(":01").do(lambda: predict_price("KRW-BTC"))
+schedule.every().hour.at(":02").do(lambda: report("KRW-BTC"))
 
 # 로그인
 upbit = pyupbit.Upbit(access, secret)
@@ -197,15 +181,21 @@ while True:
             current_price = get_current_price("KRW-BTC")
             krw = get_balance("KRW")
             if krw > 5000 and cnt == 0:
-                if target_price < current_price and current_price < predicted_close_price:
+                if target_price*0.999 < current_price:
                     upbit.buy_market_order("KRW-BTC", krw*0.9995)
                     dbgout("BTC buy : " +str(current_price))
-                    time.sleep(600)
+                    time.sleep(900)
 
-            elif target_price > current_price and krw*3 < btc*current_price + krw:
+            elif target_price*1.001 > current_price and krw*3 < btc*current_price + krw:
                 if btc > 0.00008:
-                    upbit.sell_market_order("KRW-BTC", btc*0.5)
-                    dbgout("BTC sell half: " +str(current_price))
+                    if current_price < predicted_close_price:
+                        upbit.sell_market_order("KRW-BTC", btc*0.5)
+                        dbgout("BTC sell half: " +str(current_price))
+                        time.sleep(900)
+                    else:
+                        upbit.sell_market_order("KRW-BTC", btc)
+                        dbgout("BTC sell : " +str(current_price))
+                        time.sleep(900)
 
         elif start_time < now < start_time + datetime.timedelta(seconds=30):
             cnt = 0
