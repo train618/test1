@@ -191,7 +191,7 @@ while True:
                     if current_price > predicted_close_price:
                         upbit.sell_market_order("KRW-BTC", btc*0.5)
                         dbgout("BTC sell half: " +str(current_price))
-                        cnt++
+                        cnt+=1
                         time.sleep(1800)
 
         elif start_time < now < start_time + datetime.timedelta(seconds=30):
