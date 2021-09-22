@@ -180,22 +180,19 @@ while True:
             target_price = get_target_price("KRW-BTC", 0.5)
             current_price = get_current_price("KRW-BTC")
             krw = get_balance("KRW")
-            if krw > 5000 and cnt == 0:
+            if krw > 5000 and cnt < 2:
                 if target_price*0.999 < current_price:
                     upbit.buy_market_order("KRW-BTC", krw*0.9995)
                     dbgout("BTC buy : " +str(current_price))
-                    time.sleep(900)
+                    time.sleep(1800)
 
             elif target_price*1.001 > current_price and krw*3 < btc*current_price + krw:
                 if btc > 0.00008:
-                    if current_price < predicted_close_price:
+                    if current_price > predicted_close_price:
                         upbit.sell_market_order("KRW-BTC", btc*0.5)
                         dbgout("BTC sell half: " +str(current_price))
-                        time.sleep(900)
-                    else:
-                        upbit.sell_market_order("KRW-BTC", btc)
-                        dbgout("BTC sell : " +str(current_price))
-                        time.sleep(900)
+                        cnt++
+                        time.sleep(1800)
 
         elif start_time < now < start_time + datetime.timedelta(seconds=30):
             cnt = 0
@@ -204,7 +201,7 @@ while True:
             if btc > 0.00008:
                 current_price = get_current_price("KRW-BTC")
                 upbit.sell_market_order("KRW-BTC", btc)
-                cnt = 1
+                cnt = 2
                 dbgout("BTC sell : " +str(current_price))
 
         time.sleep(1)
